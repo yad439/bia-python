@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from pyvrp import Client, Depot, Model
 from pyvrp.stop import MaxRuntime
 
-from instance import Instance
+from instance import Instance, dataclass
 
 # Constant for converting float values to integers
 
@@ -42,28 +42,37 @@ def build_first_stage_model(instance:Instance):
 					)
 	return model
 
+@dataclass
+class VehicleRoute:
+	clients: list[tuple[int,int]]
+	distance:int
+	shift_length: int
+
 def detailed_route(instance:Instance, route:Iterable[Client|Depot], start_time:int):
 	result:list[tuple[int,int]]= []
 	time=start_time
+	distance=0
 	client_mapping = {client.id: client for client in instance.orders}
 	prev_client=0
 	for node in route:
 		if isinstance(node, Depot):
 			time+=instance.vehicle_times[prev_client][0]
-			result.append((0,time))  # Add depot with a small epsilon to avoid precision issues
+			result.append((0,time))
 			time+=instance.depot.load_time
 		else:
 			order = client_mapping[int(node.name)]
 			time += instance.vehicle_times[prev_client][order.id]
+			distance+= instance.distances[prev_client][order.id]
 			assert time<= order.time_window[1]
 			if time<order.time_window[0]:
 				time = order.time_window[0]
-			result.append((order.id, time))  # Add order with a small epsilon to avoid precision issues
+			result.append((order.id, time))
 			time += order.vehicle_service_time
 			prev_client = order.id
 	time+= instance.vehicle_times[prev_client][0]
+	distance+= instance.distances[prev_client][0]
 	assert time-start_time <= instance.vehicle_shift_size
-	return result
+	return VehicleRoute(result,distance,time-start_time)
 
 
 def solve_first_stage_model(instance: Instance):
