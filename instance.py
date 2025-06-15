@@ -13,6 +13,7 @@ class Depot:
 @dataclass
 class Order:
     id: int
+    inner_id:int
     x: int
     y: int
     volume: int
@@ -57,11 +58,13 @@ class Instance:
 
         # Process orders and multiply times to match rounding
         processed_orders: list[Order] = []
+        i=1
         for order_data in data['orders']:
             order_data['time_window'] = [t*100 for t in order_data['time_window']]
             order_data['vehicle_service_time'] = order_data['vehicle_service_time']*100
             order_data['loader_service_time'] = order_data['loader_service_time']*100
-            processed_orders.append(Order(**order_data))
+            processed_orders.append(Order(**order_data, inner_id=i))
+            i+=1
 
         orders: list[Order] = processed_orders
         weights = Weights(**data['weights'])

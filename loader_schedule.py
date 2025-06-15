@@ -1,7 +1,6 @@
 from collections.abc import Iterable, Callable
 import copy
 from dataclasses import dataclass
-import dataclasses
 import math
 from instance import Instance, Order
 
@@ -13,9 +12,7 @@ class LoaderJob:
     loader_cnt: int
     order: Order
 
-def collect_loader_jobs(instance: Instance,
-                            detailed_routes: Iterable[Iterable[tuple[int, int]]]
-                           ):
+def collect_loader_jobs(instance: Instance,detailed_routes: Iterable[Iterable[tuple[int, int]]]):
         jobs: list[LoaderJob] = []
         for route in detailed_routes:
             for order_id, arrival_time in route:
@@ -24,7 +21,7 @@ def collect_loader_jobs(instance: Instance,
                 order = next(o for o in instance.orders if o.id == order_id)
                 if order.loader_cnt > 0:
                     jobs.append(LoaderJob(
-                        order_id=order_id,
+                        order_id=order.inner_id,
                         earliest_time=arrival_time,
                         loader_service_time=order.loader_service_time,
                         loader_cnt=order.loader_cnt,
@@ -44,11 +41,11 @@ def select_job_min_wait(instance: Instance, job_pool: list[LoaderJob], finish_ti
     best_arrival_time = None
     for job_idx, candidate_job in enumerate(job_pool):
         # Calculate travel time and arrival
-        travel_time = instance.loader_times[prev_order.id][candidate_job.order.id]
+        travel_time = instance.loader_times[prev_order.inner_id][candidate_job.order.inner_id]
         arrival_time = finish_time + travel_time
         candidate_start = max(arrival_time, candidate_job.earliest_time)
         candidate_finish = candidate_start + candidate_job.loader_service_time
-        return_time = candidate_finish + instance.loader_times[candidate_job.order.id][first_order_id]
+        return_time = candidate_finish + instance.loader_times[candidate_job.order.inner_id][first_order_id]
 
         # Check constraints
         if arrival_time > candidate_job.earliest_time or return_time - begin_time > instance.loader_shift_size:
@@ -64,11 +61,11 @@ def select_job_min_wait(instance: Instance, job_pool: list[LoaderJob], finish_ti
 def select_job_next(instance: Instance, job_pool: list[LoaderJob], finish_time: int, prev_order: Order, first_order_id: int, begin_time: int):
     for job_idx, candidate_job in enumerate(job_pool):
         # Calculate travel time and arrival
-        travel_time = instance.loader_times[prev_order.id][candidate_job.order.id]
+        travel_time = instance.loader_times[prev_order.inner_id][candidate_job.order.inner_id]
         arrival_time = finish_time + travel_time
         candidate_start = max(arrival_time, candidate_job.earliest_time)
         candidate_finish = candidate_start + candidate_job.loader_service_time
-        return_time = candidate_finish + instance.loader_times[candidate_job.order.id][first_order_id]
+        return_time = candidate_finish + instance.loader_times[candidate_job.order.inner_id][first_order_id]
 
         # Check constraints
         if arrival_time > candidate_job.earliest_time or return_time - begin_time > instance.loader_shift_size:

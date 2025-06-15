@@ -10,7 +10,7 @@ def build_first_stage_model(instance:Instance):
 	model=Model()
 	depot = model.add_depot(x=instance.depot.x, y=instance.depot.y)
 	model.add_vehicle_type(
-		num_available=100,
+		num_available=len(instance.orders),
 		start_depot=depot,
 		capacity=instance.vehicle_capacity,
 		fixed_cost=instance.weights.vehicle_salary,
@@ -61,14 +61,14 @@ def detailed_route(instance:Instance, route:Iterable[Client|Depot], start_time:i
 			time+=instance.depot.load_time
 		else:
 			order = client_mapping[int(node.name)]
-			time += instance.vehicle_times[prev_client][order.id]
-			distance+= instance.distances[prev_client][order.id]
+			time += instance.vehicle_times[prev_client][order.inner_id]
+			distance+= instance.distances[prev_client][order.inner_id]
 			assert time<= order.time_window[1]
 			if time<order.time_window[0]:
 				time = order.time_window[0]
 			result.append((order.id, time))
 			time += order.vehicle_service_time
-			prev_client = order.id
+			prev_client = order.inner_id
 	time+= instance.vehicle_times[prev_client][0]
 	distance+= instance.distances[prev_client][0]
 	assert time-start_time <= instance.vehicle_shift_size
