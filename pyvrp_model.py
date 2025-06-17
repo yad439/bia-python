@@ -77,7 +77,7 @@ def detailed_route(instance:Instance, route:Iterable[Client|Depot], start_time:i
 
 def solve_first_stage_model(instance: Instance):
 	model = build_first_stage_model(instance)
-	solution = model.solve(stop=MaxRuntime(60))
+	solution = model.solve(stop=MaxRuntime(60*2),seed=43)
 	print(solution)
 	routes=(detailed_route(instance,(model.locations[i] for i in route), route.start_time()) for route in solution.best.routes())
 	return routes

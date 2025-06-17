@@ -67,6 +67,7 @@ def optimize_loader_schedule_with_nevergrad(
     # Each element can be any real number, argsort will create the permutation
     num_jobs = len(jobs)
     parametrization = ng.p.Array(shape=(num_jobs,))
+    parametrization.random_state.seed(43)
 
     # Create the optimizer - using OnePlusOne as it's good for continuous optimization
     budget = max(1000000, int(time_limit * 200))
@@ -75,7 +76,7 @@ def optimize_loader_schedule_with_nevergrad(
     callback=ng.callbacks.EarlyStopping(lambda opt:time.time()-start_time>time_limit)
     optimizer.register_callback('ask',callback)
 
-    res= optimizer.minimize(objective_function,verbosity=1)
+    res= optimizer.minimize(objective_function,verbosity=0)
 
     # Convert the best parameters to permutation and return ordered jobs
     best_permutation = np.argsort(res.value)
