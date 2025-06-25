@@ -1,3 +1,2 @@
 pyvrp
 nevergrad
-mealpy
