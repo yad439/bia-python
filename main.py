@@ -1,58 +1,89 @@
 import math
-from pathlib import Path
 import sys
-from unittest import loader
+from collections.abc import Iterable
+from pathlib import Path
+
 import export_solution
 import loader_heuristic
 import loader_schedule
 import objective
 import pyvrp_model
 from instance import Instance
+from loader_schedule import LoaderJob, LoaderRoute
+from pyvrp_model import VehicleRoute
+
+
+def generate_loader_schedules(instance: Instance, loader_jobs: list[LoaderJob], time_limit: float):
+	"""Generates different variants of loader schedules."""
+	loader_jobs.sort(key=lambda job: job.earliest_time)
+	# Schedule minimizing waiting time
+	schedule_basic = loader_schedule.build_loader_schedule(instance, loader_jobs)
+	# Schedule by due time
+	schedule_sorted = loader_schedule.build_loader_schedule(instance, loader_jobs, loader_schedule.select_job_next)
+	# Optimize schedule using Nevergrad
+	optimized_jobs = loader_heuristic.optimize_loader_schedule_with_nevergrad(instance, loader_jobs, time_limit)
+	schedule_optimized = loader_schedule.build_loader_schedule(instance, optimized_jobs,
+	                                                           loader_schedule.select_job_next)
+
+	return [schedule_basic, schedule_sorted, schedule_optimized]
+
+
+def evaluate_schedules(instance: Instance, loader_schedules: Iterable[Iterable[LoaderRoute]]):
+	"""Evaluates schedules and returns the best one."""
+	schedule_evaluations = [
+	    (objective.calculate_loader_objective_wrong(instance, schedule), schedule) for schedule in loader_schedules
+	]
+
+	best_evaluation = min(schedule_evaluations, key=lambda x: x[0])
+	return best_evaluation
+
+
+def save_results(input_path: str, instance: Instance, vehicle_routes: Iterable[VehicleRoute],
+                 best_schedule: Iterable[LoaderRoute], best_objective: int, vehicle_objective: int):
+	"""Saves results to solution file and CSV."""
+	output_file = f'sol_{Path(input_path).stem}.json'
+	export_solution.export_solution_to_json(vehicle_routes, best_schedule, output_file)
+
+	loader_objective_wrong = objective.calculate_loader_objective_wrong(instance, best_schedule)
+	print(best_objective, vehicle_objective + loader_objective_wrong)
+
+	with open('results.csv', 'a') as f:
+		print(
+		    Path(input_path).stem,
+		    round_two_digits(best_objective / 10_000),  # Divide by 10_000 to match the original objective scale
+		    round_two_digits((vehicle_objective + loader_objective_wrong) / 10_000),
+		    sep=',',
+		    file=f)
 
 
 def main():
-	inp=sys.argv[1] if len(sys.argv) > 1 else "t3.json"
-	instance=Instance.from_json(inp)
-	res=list(pyvrp_model.solve_first_stage_model(instance))
-	loader_jobs=loader_schedule.collect_loader_jobs(instance,(r.clients for r in res))
-	loader_jobs.sort(key=lambda x: x.earliest_time)
-	loader_schedules1=loader_schedule.build_loader_schedule(instance, loader_jobs)
-	loader_schedules2=loader_schedule.build_loader_schedule(instance, loader_jobs, loader_schedule.select_job_next)
-	# rrr=loader_heuristic.optimize_loader_schedule_with_mealpy(instance,loader_jobs)
-	# loader_schedules3=loader_schedule.build_loader_schedule(instance, rrr, loader_schedule.select_job_next)
-	rrrr=loader_heuristic.optimize_loader_schedule_with_nevergrad(instance,loader_jobs)
-	# loader_schedules4=loader_schedule.build_loader_schedule(instance, rrrr, loader_schedule.select_job_next)
-	lll=[loader_schedules1, loader_schedules2, loader_schedule.build_loader_schedule(instance, rrrr, loader_schedule.select_job_next)]
-	# lll=[loader_schedule.build_loader_schedule(instance, r, loader_schedule.select_job_next) for r in ll]
-	llll=[(objective.calculate_vehicle_objective(instance, res),r) for r in lll]
-	print([r[0] for r in llll])
-	ml=min(llll, key=lambda x: x[0])
-	# print(rrr)
-	# for r in res:
-		# print(r)
-	# for l in loader_schedules1:
-		# print([o for o in l.order_ids])
-	vc=objective.calculate_vehicle_objective(instance, res)
-	wo=objective.calculate_loader_objective_wrong(instance, ml[1])
-	# lo0=objective.calculate_loader_objective_wrong(instance, loader_schedules1)
-	# loader_objective1=objective.calculate_loader_objective(instance, loader_schedules1)
-	# loader_objective2=objective.calculate_loader_objective(instance, loader_schedules2)
-	# loader_objective3=objective.calculate_loader_objective(instance, loader_schedules3)
-	# loader_objective4=objective.calculate_loader_objective(instance, loader_schedules4)
-	print(vc+ml[0],vc+wo)
-	# print(vc+loader_objective1,vc+loader_objective2,vc+loader_objective3, vc+loader_objective4)
-	out=f'sol_{Path(inp).stem}.json'
-	export_solution.export_solution_to_json(
-		instance,
-		res,
-		ml[1],
-		out
-	)
-	with open('res.csv','a') as f:
-		print(Path(inp).stem,round_((vc+ml[0])/10_000),round_((vc+wo)/10_000),sep=',',file=f)
+	input_path = sys.argv[1]
+	instance = Instance.from_json(input_path)
+	total_time = float(sys.argv[2]) if len(sys.argv) > 2 else 7 * 60.0
+	vehicle_time = total_time * 5 / 7
+	loader_time = total_time * 2 / 7
 
-def round_(x:float):
-	return math.floor(x * 100 + 0.5) /100
+	# Build vehicle schedule
+	vehicle_routes = pyvrp_model.build_vehicle_schedule(instance, vehicle_time)
+
+	# Collect and sort loader jobs
+	loader_jobs = loader_schedule.collect_loader_jobs(instance, (route.clients for route in vehicle_routes))
+
+	# Generate different loader schedules
+	loader_schedules = generate_loader_schedules(instance, loader_jobs, loader_time)
+
+	# Evaluate and select the best schedule
+	best_objective, best_schedule = evaluate_schedules(instance, loader_schedules)
+	vehicle_objective = objective.calculate_vehicle_objective(instance, vehicle_routes)
+
+	# Save results
+	save_results(input_path, instance, vehicle_routes, best_schedule, best_objective, vehicle_objective)
+
+
+def round_two_digits(x: float):
+	"""Rounds a floating-point number to two decimal places."""
+	return math.floor(x * 100 + 0.5) / 100
+
 
 if __name__ == "__main__":
 	main()
