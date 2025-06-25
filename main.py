@@ -1,5 +1,5 @@
 import math
-import sys
+import argparse
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -38,18 +38,17 @@ def evaluate_schedules(instance: Instance, loader_schedules: Iterable[Iterable[L
 	return best_evaluation
 
 
-def save_results(input_path: str, instance: Instance, vehicle_routes: Iterable[VehicleRoute],
+def save_results(directory: Path, instance: Instance, instance_name: str, vehicle_routes: Iterable[VehicleRoute],
                  best_schedule: Iterable[LoaderRoute], best_objective: int, vehicle_objective: int):
 	"""Saves results to solution file and CSV."""
-	output_file = f'sol_{Path(input_path).stem}.json'
+	output_file = directory / f'sol_{instance_name}.json'
 	export_solution.export_solution_to_json(vehicle_routes, best_schedule, output_file)
 
 	loader_objective_wrong = objective.calculate_loader_objective_wrong(instance, best_schedule)
-	print(best_objective, vehicle_objective + loader_objective_wrong)
 
-	with open('results.csv', 'a') as f:
+	with open(directory / "results.csv", 'a') as f:
 		print(
-		    Path(input_path).stem,
+		    instance_name,
 		    round_two_digits(best_objective / 10_000),  # Divide by 10_000 to match the original objective scale
 		    round_two_digits((vehicle_objective + loader_objective_wrong) / 10_000),
 		    sep=',',
@@ -57,11 +56,27 @@ def save_results(input_path: str, instance: Instance, vehicle_routes: Iterable[V
 
 
 def main():
-	input_path = sys.argv[1]
+	parser = argparse.ArgumentParser()
+	parser.add_argument("instance", type=str, help="Path to the input JSON file.")
+	parser.add_argument("-t",
+	                    "--time",
+	                    type=float,
+	                    default=7 * 60.0,
+	                    help="Total time limit in seconds (default: 7 minutes).")
+	parser.add_argument("-o",
+	                    "--output",
+	                    type=str,
+	                    default=".",
+	                    help="Output directory for results (default: current directory).")
+	args = parser.parse_args()
+
+	input_path = Path(args.instance)
 	instance = Instance.from_json(input_path)
-	total_time = float(sys.argv[2]) if len(sys.argv) > 2 else 7 * 60.0
+	total_time = args.time
 	vehicle_time = total_time * 5 / 7
 	loader_time = total_time * 2 / 7
+	out_path = Path(args.output)
+	instance_name = input_path.stem
 
 	# Build vehicle schedule
 	vehicle_routes = pyvrp_model.build_vehicle_schedule(instance, vehicle_time)
@@ -77,7 +92,7 @@ def main():
 	vehicle_objective = objective.calculate_vehicle_objective(instance, vehicle_routes)
 
 	# Save results
-	save_results(input_path, instance, vehicle_routes, best_schedule, best_objective, vehicle_objective)
+	save_results(out_path, instance, instance_name, vehicle_routes, best_schedule, best_objective, vehicle_objective)
 
 
 def round_two_digits(x: float):

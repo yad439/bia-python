@@ -1,5 +1,6 @@
 import json
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
 
 from loader_schedule import LoaderRoute
@@ -7,17 +8,17 @@ from pyvrp_model import VehicleRoute
 
 
 def export_solution_to_json(vehicle_routes: Iterable[VehicleRoute], loader_schedules: Iterable[LoaderRoute],
-                            output_path: str):
+                            output_path: Path):
 	"""
 Export the solution to a JSON file.
 
 This function takes the found vehicle and loader routes and saves them in a specified JSON format.
 
 Args:
-        instance (Instance): The problem instance containing all relevant data.
-        vehicle_routes (list[VehicleRoute]): List of vehicle routes where each route contains a sequence of clients
-        loader_schedules (list[LoaderAssignment]): List of loader assignments where each assignment contains a sequence
-        output_path (str): The file path where the JSON solution will be saved.
+    instance (Instance): The problem instance containing all relevant data.
+    vehicle_routes (list[VehicleRoute]): List of vehicle routes where each route contains a sequence of clients
+    loader_schedules (list[LoaderAssignment]): List of loader assignments where each assignment contains a sequence
+    output_path (str): The file path where the JSON solution will be saved.
 """
 	vehicles: list[dict[str, Any]] = []
 	for idx, route in enumerate(vehicle_routes):
@@ -35,5 +36,7 @@ Args:
 		loaders.append({"id": idx + 1, "route": [assignment for assignment in schedule.order_ids]})
 
 	solution = {"vehicles": vehicles, "loaders": loaders}
-	with open(output_path, "w") as f:
+	with output_path.open('w') as f:
 		json.dump(solution, f, indent=4)
+
+	print(f"Solution written to {output_path}")

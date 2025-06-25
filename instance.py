@@ -1,12 +1,13 @@
 import json
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
 class Depot:
 	"""A structure representing the depot of the problem instance. Load time is multipled by 100 to avoid floating-point
-	precision issues."""
+    precision issues."""
 	x: int
 	y: int
 	load_time: int
@@ -15,7 +16,7 @@ class Depot:
 @dataclass
 class Order:
 	"""A structure representing an order in the problem instance. Times are multiplied by 100 to avoid floating-point
-	precision issues."""
+    precision issues."""
 	id: int
 	inner_id: int  # Consecutive ID starting from 1, used for internal processing
 	x: int
@@ -31,7 +32,7 @@ class Order:
 @dataclass
 class Weights:
 	"""A structure representing the weights used in the problem instance. Values are multipleid by appropriate factors
-	to avoid floating-point precision issues."""
+    to avoid floating-point precision issues."""
 	vehicle_salary: int
 	loader_salary: int
 	fuel_cost: int
@@ -42,7 +43,7 @@ class Weights:
 @dataclass
 class Instance:
 	"""A structure representing the instance of the problem. Floating-point values are multiplied by 100 and rounded to
-	integers to avoid floating-point precision issues."""
+    integers to avoid floating-point precision issues."""
 	vehicle_capacity: int
 	vehicle_speed: float
 	loader_speed: float
@@ -56,7 +57,7 @@ class Instance:
 	loader_times: list[list[int]]
 
 	@classmethod
-	def from_json(cls, json_path: str):
+	def from_json(cls, json_path: Path):
 		"""Load an instance from a JSON file."""
 		with open(json_path, 'r') as f:
 			data = json.load(f)

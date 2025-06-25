@@ -57,6 +57,7 @@ def optimize_loader_schedule_with_nevergrad(instance: Instance, jobs: list[Loade
 	optimizer.register_callback('ask', callback)
 
 	# Optimize
+	print("Running Nevergrad for building loader schedule")
 	res = optimizer.minimize(objective_function, verbosity=0)
 
 	# Convert the best parameters to permutation and return ordered jobs
